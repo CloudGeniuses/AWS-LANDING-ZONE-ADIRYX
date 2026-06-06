@@ -93,9 +93,10 @@ resource "aws_organizations_organizational_unit" "non_production" {
 # EXISTING AWS ACCOUNTS ONLY
 #################################################
 
-# Existing account: aws-test@adiryx.com
-# Renaming this from adiryx-test to adiryx-security
-resource "aws_organizations_account" "security" {
+# Existing account ID: 295435084681
+# Existing email: aws-test@adiryx.com
+# Terraform resource name must remain "test" to avoid destroy/recreate.
+resource "aws_organizations_account" "test" {
   name      = "adiryx-security"
   email     = "aws-test@adiryx.com"
   parent_id = aws_organizations_organizational_unit.security.id
@@ -104,6 +105,7 @@ resource "aws_organizations_account" "security" {
   close_on_deletion          = false
 }
 
+# Existing account ID: 146727531495
 resource "aws_organizations_account" "network" {
   name      = "adiryx-network"
   email     = "aws-network@adiryx.com"
@@ -113,6 +115,7 @@ resource "aws_organizations_account" "network" {
   close_on_deletion          = false
 }
 
+# Existing account ID: 459524413424
 resource "aws_organizations_account" "identity" {
   name      = "adiryx-identity"
   email     = "aws-identity@adiryx.com"
@@ -122,6 +125,7 @@ resource "aws_organizations_account" "identity" {
   close_on_deletion          = false
 }
 
+# Existing account ID: 124074140738
 resource "aws_organizations_account" "soc_platform" {
   name      = "adiryx-soc-platform"
   email     = "aws-soc-platform@adiryx.com"
@@ -185,7 +189,7 @@ output "aws_organization_id" {
 
 output "adiryx_current_accounts" {
   value = {
-    security     = aws_organizations_account.security.name
+    security     = aws_organizations_account.test.name
     network      = aws_organizations_account.network.name
     identity     = aws_organizations_account.identity.name
     soc_platform = aws_organizations_account.soc_platform.name
