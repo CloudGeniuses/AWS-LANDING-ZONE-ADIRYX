@@ -2,10 +2,10 @@ terraform {
   required_version = ">= 1.6.0"
 
   cloud {
-    organization = "YOUR_TERRAFORM_CLOUD_ORG"
+    organization = "CloudGenius"
 
     workspaces {
-      name = "adiryx-aws-landing-zone"
+      name = "AWS-LANDING-ZONE-ADIRYX"
     }
   }
 
@@ -37,10 +37,6 @@ resource "aws_organizations_organization" "adiryx" {
     "SERVICE_CONTROL_POLICY"
   ]
 }
-
-#################################################
-# ROOT
-#################################################
 
 data "aws_organizations_organization" "current" {
   depends_on = [aws_organizations_organization.adiryx]
@@ -80,7 +76,7 @@ resource "aws_organizations_organizational_unit" "suspended" {
 }
 
 #################################################
-# CHILD OUs UNDER WORKLOADS
+# CHILD OUs
 #################################################
 
 resource "aws_organizations_organizational_unit" "production" {
@@ -94,21 +90,14 @@ resource "aws_organizations_organizational_unit" "non_production" {
 }
 
 #################################################
-# AWS ACCOUNTS
+# EXISTING AWS ACCOUNTS ONLY
 #################################################
 
-resource "aws_organizations_account" "log_archive" {
-  name      = "adiryx-log-archive"
-  email     = "aws-log-archive@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.security.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
-resource "aws_organizations_account" "security_tooling" {
-  name      = "adiryx-security-tooling"
-  email     = "aws-security-tooling@adiryx.com"
+# Existing account: aws-test@adiryx.com
+# Renaming this from adiryx-test to adiryx-security
+resource "aws_organizations_account" "security" {
+  name      = "adiryx-security"
+  email     = "aws-test@adiryx.com"
   parent_id = aws_organizations_organizational_unit.security.id
 
   iam_user_access_to_billing = "DENY"
@@ -133,51 +122,6 @@ resource "aws_organizations_account" "identity" {
   close_on_deletion          = false
 }
 
-resource "aws_organizations_account" "shared_services" {
-  name      = "adiryx-shared-services"
-  email     = "aws-shared-services@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.infrastructure.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
-resource "aws_organizations_account" "prod" {
-  name      = "adiryx-prod"
-  email     = "aws-prod@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.production.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
-resource "aws_organizations_account" "dev" {
-  name      = "adiryx-dev"
-  email     = "aws-dev@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.non_production.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
-resource "aws_organizations_account" "test" {
-  name      = "adiryx-test"
-  email     = "aws-test@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.non_production.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
-resource "aws_organizations_account" "uat" {
-  name      = "adiryx-uat"
-  email     = "aws-uat@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.non_production.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
 resource "aws_organizations_account" "soc_platform" {
   name      = "adiryx-soc-platform"
   email     = "aws-soc-platform@adiryx.com"
@@ -187,17 +131,8 @@ resource "aws_organizations_account" "soc_platform" {
   close_on_deletion          = false
 }
 
-resource "aws_organizations_account" "sandbox" {
-  name      = "adiryx-sandbox"
-  email     = "aws-sandbox@adiryx.com"
-  parent_id = aws_organizations_organizational_unit.sandbox.id
-
-  iam_user_access_to_billing = "DENY"
-  close_on_deletion          = false
-}
-
 #################################################
-# BASIC SCP - DENY LEAVING ORGANIZATION
+# BASIC SCP
 #################################################
 
 resource "aws_organizations_policy" "deny_leave_org" {
@@ -205,15 +140,15 @@ resource "aws_organizations_policy" "deny_leave_org" {
   description = "Prevents member accounts from leaving the AWS Organization."
   type        = "SERVICE_CONTROL_POLICY"
 
+  depends_on = [aws_organizations_organization.adiryx]
+
   content = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "DenyLeaveOrganization"
-        Effect = "Deny"
-        Action = [
-          "organizations:LeaveOrganization"
-        ]
+        Sid      = "DenyLeaveOrganization"
+        Effect   = "Deny"
+        Action   = ["organizations:LeaveOrganization"]
         Resource = "*"
       }
     ]
@@ -246,6 +181,15 @@ resource "aws_organizations_policy_attachment" "deny_leave_org_sandbox" {
 
 output "aws_organization_id" {
   value = data.aws_organizations_organization.current.id
+}
+
+output "adiryx_current_accounts" {
+  value = {
+    security     = aws_organizations_account.security.name
+    network      = aws_organizations_account.network.name
+    identity     = aws_organizations_account.identity.name
+    soc_platform = aws_organizations_account.soc_platform.name
+  }
 }
 
 output "adiryx_ou_structure" {
